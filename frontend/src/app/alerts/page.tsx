@@ -52,18 +52,35 @@ export default function AlertsPage() {
   const [reports, setReports] = useState<any[]>([]);
   const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
   const nextId = useRef(0);
+  const alertIdsRef = useRef<Set<string>>(new Set());
+
+  function mergeAlerts(fresh: any[]) {
+    setAlerts((prev) => {
+      const newOnes = fresh.filter((a) => !alertIdsRef.current.has(a.id));
+      newOnes.forEach((a) => {
+        alertIdsRef.current.add(a.id);
+        const id = ++nextId.current;
+        setToasts((t) => [...t, { id, message: a.message }]);
+        setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5000);
+      });
+      if (newOnes.length === 0) return prev;
+      return [...newOnes, ...prev];
+    });
+  }
+
+  function fetchAlerts() {
+    api.getAlerts().then((data) => {
+      alertIdsRef.current = new Set(data.map((a: any) => a.id));
+      setAlerts(data);
+    }).catch(console.error);
+  }
 
   const [myThreshold, setMyThreshold] = useState<number>(5);
   const notifiedIncidents = useRef<Set<string>>(new Set());
 
   // Load reports + threshold
   useEffect(() => {
-    api.getReports().then(setReports).catch(console.error);
-
-    api
-      .getMe()
-      .then((me) => setMyThreshold(me.default_threshold ?? 5))
-      .catch(() => setMyThreshold(5));
+    api.getAlerts().then(setAlerts).catch(console.error);
   }, []);
 
   // Reset notification memory when threshold changes
@@ -74,18 +91,14 @@ export default function AlertsPage() {
   // Realtime: new reports
   useEffect(() => {
     const channel = supabase
-      .channel("reports-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "reports" },
-        (payload: any) => {
-          const newReport = payload.new;
-          setReports((prev) => {
-            if (prev.some((r) => r.id === newReport.id)) return prev;
-            return [{ ...newReport, vote_count: 0 }, ...prev];
-          });
-        }
-      )
+      .channel("alerts-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "alerts" }, (payload: any) => {
+        const newAlert = payload.new;
+        setAlerts((prev) => [newAlert, ...prev]);
+        const id = ++nextId.current;
+        setToasts((prev) => [...prev, { id, message: newAlert.message }]);
+        setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000);
+      })
       .subscribe();
 
     return () => {
@@ -177,20 +190,12 @@ export default function AlertsPage() {
             Your threshold: <b>{myThreshold}</b>
           </p>
         </div>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            background: "#dcfce7",
-            color: "#166534",
-            padding: "0.4rem 0.875rem",
-            borderRadius: 9999,
-            fontSize: "0.8rem",
-            fontWeight: 600,
-          }}
-        >
+        <div style={{
+          display: "flex", alignItems: "center", gap: "0.5rem",
+          background: "#dcfce7", color: "#166534",
+          padding: "0.4rem 0.875rem", borderRadius: 9999,
+          fontSize: "0.8rem", fontWeight: 600,
+        }}>
           <span className="live-dot" /> Live
         </div>
       </div>
