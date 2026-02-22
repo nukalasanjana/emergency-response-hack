@@ -1,0 +1,100 @@
+/* [project]/Downloads/pearlhacks26/emergency-response-hack/frontend/src/app/globals.css [app-client] (css) */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px #0000001a;
+}
+
+.btn {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem 1.25rem;
+  font-weight: 600;
+  transition: background .15s;
+  display: inline-flex;
+}
+
+.btn-primary {
+  color: #fff;
+  background: #4f46e5;
+}
+
+.btn-primary:hover {
+  background: #4338ca;
+}
+
+.btn-secondary {
+  color: #1f2937;
+  background: #e5e7eb;
+}
+
+.btn-secondary:hover {
+  background: #d1d5db;
+}
+
+.btn-danger {
+  color: #fff;
+  background: #ef4444;
+}
+
+input, textarea, select {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  width: 100%;
+  margin-top: .25rem;
+  padding: .5rem .75rem;
+  font-size: .95rem;
+}
+
+label {
+  margin-top: .75rem;
+  font-size: .9rem;
+  font-weight: 600;
+  display: block;
+}
+
+.toast-container {
+  z-index: 9999;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+}
+
+.toast {
+  color: #fff;
+  background: #4f46e5;
+  border-radius: 8px;
+  margin-bottom: .5rem;
+  padding: .75rem 1.25rem;
+  animation: .3s slideIn;
+  box-shadow: 0 4px 12px #00000026;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/*# sourceMappingURL=Downloads_pearlhacks26_emergency-response-hack_frontend_src_app_globals_57d92c06.css.map*/
