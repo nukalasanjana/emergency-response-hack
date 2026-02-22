@@ -47,4 +47,5 @@ export const api = {
   getMyVotes: () => apiFetch("/me/votes") as Promise<string[]>,
   getAlerts: () => apiFetch("/alerts"),
   getAnalytics: () => apiFetch("/admin/analytics"),
+  makeAdmin: () => apiFetch("/me/make-admin", { method: "POST" }),
 };

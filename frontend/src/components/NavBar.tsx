@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 const NAV_LINKS = [
   { href: "/map",      label: "Incidents", icon: "📋" },
@@ -12,6 +15,28 @@ const NAV_LINKS = [
 
 export default function NavBar() {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    async function checkAdmin() {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) { setIsAdmin(false); return; }
+      try {
+        const profile = await api.getMe();
+        setIsAdmin(profile.role === "admin");
+      } catch {
+        setIsAdmin(false);
+      }
+    }
+    checkAdmin();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => checkAdmin());
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const allLinks = [
+    ...NAV_LINKS,
+    ...(isAdmin ? [{ href: "/admin/analytics", label: "Analytics", icon: "📊" }] : []),
+  ];
 
   return (
     <nav style={{
@@ -63,8 +88,9 @@ export default function NavBar() {
 
         {/* Nav links */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.125rem" }}>
-          {NAV_LINKS.map(({ href, label, icon }) => {
-            const active = pathname === href;
+          {allLinks.map(({ href, label, icon }) => {
+            const active = pathname === href || pathname.startsWith(href + "/");
+            const isAnalytics = href === "/admin/analytics";
             return (
               <Link key={href} href={href} style={{
                 display: "flex",
@@ -75,15 +101,16 @@ export default function NavBar() {
                 textDecoration: "none",
                 fontSize: "0.875rem",
                 fontWeight: active ? 600 : 500,
-                color: active ? "white" : "rgba(255,255,255,0.55)",
-                background: active ? "rgba(255,255,255,0.1)" : "transparent",
+                color: active ? "white" : isAnalytics ? "rgba(251,191,36,0.85)" : "rgba(255,255,255,0.55)",
+                background: active ? (isAnalytics ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.1)") : "transparent",
+                border: isAnalytics && !active ? "1px solid rgba(251,191,36,0.25)" : "1px solid transparent",
                 transition: "all 0.15s",
               }}
               onMouseEnter={e => {
-                if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.85)";
+                if (!active) (e.currentTarget as HTMLElement).style.color = isAnalytics ? "rgba(251,191,36,1)" : "rgba(255,255,255,0.85)";
               }}
               onMouseLeave={e => {
-                if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)";
+                if (!active) (e.currentTarget as HTMLElement).style.color = isAnalytics ? "rgba(251,191,36,0.85)" : "rgba(255,255,255,0.55)";
               }}>
                 <span style={{ fontSize: "0.875rem" }}>{icon}</span>
                 {label}

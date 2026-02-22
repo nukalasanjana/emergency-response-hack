@@ -88,6 +88,14 @@ def update_threshold(body: ThresholdUpdate, authorization: str = Header(None)):
     return {"ok": True}
 
 
+@app.post("/me/make-admin")
+def make_admin(authorization: str = Header(None)):
+    uid = _get_user_id(authorization)
+    _get_profile(uid)  # ensure profile row exists
+    sb.table("profiles").update({"role": "admin"}).eq("id", uid).execute()
+    return {"ok": True, "role": "admin"}
+
+
 # ── Reports ──────────────────────────────────────────────────
 
 @app.get("/reports")
@@ -127,30 +135,6 @@ def upvote_report(report_id: str, authorization: str = Header(None)):
     # Count votes
     count_res = sb.table("report_votes").select("id", count="exact").eq("report_id", report_id).execute()
     vote_count: int = count_res.count or 0
-
-    # Check threshold
-    if vote_count >= VOTE_THRESHOLD:
-        # Check if alert already exists for this report
-        existing = sb.table("alerts").select("id").eq("report_id", report_id).execute()
-        if not existing.data:
-            # Fetch report for details
-            report = sb.table("reports").select("*").eq("id", report_id).single().execute()
-            r = report.data
-
-            # Estimate alerted count
-            alerted = _estimate_alerted(r.get("community_id"))
-
-            alert_data = {
-                "report_id": report_id,
-                "type": r["type"],
-                "message": f"High confidence {r['type']} reported near ({r['lat']},{r['lng']}). {r['title']}",
-                "lat": r["lat"],
-                "lng": r["lng"],
-                "community_id": r.get("community_id"),
-                "vote_threshold": VOTE_THRESHOLD,
-                "alerted_count": alerted,
-            }
-            sb.table("alerts").insert(alert_data).execute()
 
     return {"vote_count": vote_count}
 
@@ -203,29 +187,48 @@ def admin_analytics(authorization: str = Header(None)):
     if profile.get("role") != "admin":
         raise HTTPException(403, "Admin only")
 
-    # alerts per report
-    reports_res = sb.table("reports").select("id, title").execute()
-    reports = {r["id"]: r["title"] for r in (reports_res.data or [])}
+    # Fetch reports with vote counts
+    reports_res = sb.table("reports").select("id, title, type, community_id, report_votes(count)").execute()
+    reports_raw = reports_res.data or []
 
-    alerts_res = sb.table("alerts").select("*").execute()
-    alerts = alerts_res.data or []
+    total_votes = 0
+    total_reports = len(reports_raw)
+    # Reports that crossed the threshold count as "raised an alert" (1 alert each)
+    alerts_per_report = []
+    alerted_users_estimate = []
 
-    from collections import Counter
-    report_alert_count: Counter = Counter()
-    for a in alerts:
-        report_alert_count[a["report_id"]] += 1
+    # Total profiles for notification estimate
+    profiles_count = sb.table("profiles").select("id", count="exact").execute().count or 0
 
-    alerts_per_report = [
-        {"report_id": rid, "report_title": reports.get(rid, "Unknown"), "alert_count": cnt}
-        for rid, cnt in report_alert_count.items()
-    ]
+    for r in reports_raw:
+        votes = r.pop("report_votes", [])
+        vc = votes[0]["count"] if votes else 0
+        total_votes += vc
 
-    alerted_users_estimate = [
-        {"alert_id": a["id"], "estimated_users_alerted": a["alerted_count"]}
-        for a in alerts
-    ]
+        if vc >= VOTE_THRESHOLD:
+            # Each report that crossed the threshold = 1 alert raised
+            alerts_per_report.append({
+                "report_id": r["id"],
+                "report_title": r["title"],
+                "alert_count": 1,
+                "vote_count": vc,
+            })
+            # Estimate users alerted: community members if in a community, else all profiles
+            if r.get("community_id"):
+                cm_res = sb.table("community_memberships").select("user_id", count="exact").eq("community_id", r["community_id"]).execute()
+                estimated = cm_res.count or 0
+            else:
+                estimated = profiles_count
+            alerted_users_estimate.append({
+                "alert_id": r["id"],  # use report id as the alert identifier
+                "report_title": r["title"],
+                "estimated_users_alerted": estimated,
+            })
 
     return {
         "alerts_per_report": alerts_per_report,
         "alerted_users_estimate": alerted_users_estimate,
+        "total_reports": total_reports,
+        "total_votes": total_votes,
+        "vote_threshold": VOTE_THRESHOLD,
     }

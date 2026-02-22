@@ -160,6 +160,30 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
             {isSignUp ? "Sign In" : "Sign Up"}
           </button>
         </p>
+
+        <div style={{
+          marginTop: "1rem",
+          paddingTop: "1rem",
+          borderTop: "1px solid var(--border)",
+          textAlign: "center",
+        }}>
+          <a href="/admin/login" style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.375rem",
+            fontSize: "0.8rem",
+            color: "var(--text-muted)",
+            textDecoration: "none",
+            padding: "0.375rem 0.75rem",
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            background: "#f8fafc",
+            fontWeight: 500,
+            transition: "all 0.15s",
+          }}>
+            🛡️ Emergency responder or town staff? Admin sign-in
+          </a>
+        </div>
       </div>
     </div>
   );
