@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import NavBar from "@/components/NavBar";
 
 export const metadata: Metadata = {
   title: "Community Alerts",
@@ -19,17 +20,11 @@ export default function RootLayout({
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         />
       </head>
-      <body className="min-h-screen bg-gray-50 text-gray-900">
-        <nav className="bg-indigo-600 text-white px-6 py-3 flex items-center gap-6 shadow">
-          <a href="/" className="font-bold text-lg">
-            🚨 Community Alerts
-          </a>
-          <a href="/map" className="hover:underline">Map</a>
-          <a href="/report" className="hover:underline">Report</a>
-          <a href="/alerts" className="hover:underline">Alerts</a>
-          <a href="/settings" className="hover:underline">Settings</a>
-        </nav>
-        <main className="max-w-5xl mx-auto p-6">{children}</main>
+      <body>
+        <NavBar />
+        <main style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem 1.5rem" }}>
+          {children}
+        </main>
       </body>
     </html>
   );
