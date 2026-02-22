@@ -54,6 +54,14 @@ export default function AlertsPage() {
   const nextId = useRef(0);
   const [myThreshold, setMyThreshold] = useState<number>(5);
   const notifiedIncidents = useRef<Set<string>>(new Set());
+  const seenAlertIds = useRef<Set<string>>(new Set());
+  const hasInitializedAlerts = useRef(false);
+
+  const pushToast = (message: string) => {
+    const id = ++nextId.current;
+    setToasts((prevToasts) => [...prevToasts, { id, message }]);
+    setTimeout(() => setToasts((prevToasts) => prevToasts.filter((t) => t.id !== id)), 5000);
+  };
 
   // Load reports + threshold
   useEffect(() => {
@@ -68,7 +76,32 @@ export default function AlertsPage() {
   // Reset notification memory when threshold changes
   useEffect(() => {
     notifiedIncidents.current = new Set();
+    seenAlertIds.current = new Set();
+    hasInitializedAlerts.current = false;
   }, [myThreshold]);
+
+  // Notify when a report newly enters the alert list for this user
+  useEffect(() => {
+    const currentAlertIds = new Set(
+      reports.filter((r) => (r.vote_count ?? 0) >= myThreshold).map((r) => r.id as string)
+    );
+
+    if (!hasInitializedAlerts.current) {
+      seenAlertIds.current = currentAlertIds;
+      hasInitializedAlerts.current = true;
+      return;
+    }
+
+    currentAlertIds.forEach((reportId) => {
+      if (!seenAlertIds.current.has(reportId)) {
+        const report = reports.find((r) => r.id === reportId);
+        const title = report?.title ?? "Incident";
+        pushToast(`alert: "${title}"`);
+      }
+    });
+
+    seenAlertIds.current = currentAlertIds;
+  }, [reports, myThreshold]);
 
   // Realtime: per-user threshold (report_votes insert crosses myThreshold)
   useEffect(() => {
@@ -94,12 +127,7 @@ export default function AlertsPage() {
                 if (!notifiedIncidents.current.has(reportId)) {
                   notifiedIncidents.current.add(reportId);
                   const title = r.title ?? "Incident";
-                  const id = ++nextId.current;
-                  setToasts((prevToasts) => [
-                    ...prevToasts,
-                    { id, message: `"${title}" reached your threshold (${myThreshold})` },
-                  ]);
-                  setTimeout(() => setToasts((prevToasts) => prevToasts.filter((t) => t.id !== id)), 5000);
+                  pushToast(`alert: "${title}"`);
                 }
               }
 
