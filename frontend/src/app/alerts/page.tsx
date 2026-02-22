@@ -40,9 +40,36 @@ export default function AlertsPage() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
   const nextId = useRef(0);
+  const alertIdsRef = useRef<Set<string>>(new Set());
+
+  function mergeAlerts(fresh: any[]) {
+    setAlerts((prev) => {
+      const newOnes = fresh.filter((a) => !alertIdsRef.current.has(a.id));
+      newOnes.forEach((a) => {
+        alertIdsRef.current.add(a.id);
+        const id = ++nextId.current;
+        setToasts((t) => [...t, { id, message: a.message }]);
+        setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5000);
+      });
+      if (newOnes.length === 0) return prev;
+      return [...newOnes, ...prev];
+    });
+  }
+
+  function fetchAlerts() {
+    api.getAlerts().then((data) => {
+      alertIdsRef.current = new Set(data.map((a: any) => a.id));
+      setAlerts(data);
+    }).catch(console.error);
+  }
 
   useEffect(() => {
-    api.getAlerts().then(setAlerts).catch(console.error);
+    fetchAlerts();
+    // Poll every 30 s as a reliable fallback regardless of realtime status
+    const interval = setInterval(() => {
+      api.getAlerts().then(mergeAlerts).catch(console.error);
+    }, 30_000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -50,6 +77,8 @@ export default function AlertsPage() {
       .channel("alerts-realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "alerts" }, (payload: any) => {
         const newAlert = payload.new;
+        if (alertIdsRef.current.has(newAlert.id)) return;
+        alertIdsRef.current.add(newAlert.id);
         setAlerts((prev) => [newAlert, ...prev]);
         const id = ++nextId.current;
         setToasts((prev) => [...prev, { id, message: newAlert.message }]);
@@ -76,13 +105,22 @@ export default function AlertsPage() {
             Triggered when a report reaches its vote threshold
           </p>
         </div>
-        <div style={{
-          display: "flex", alignItems: "center", gap: "0.5rem",
-          background: "#dcfce7", color: "#166534",
-          padding: "0.4rem 0.875rem", borderRadius: 9999,
-          fontSize: "0.8rem", fontWeight: 600,
-        }}>
-          <span className="live-dot" /> Live
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <button
+            className="btn btn-secondary"
+            style={{ fontSize: "0.8rem" }}
+            onClick={fetchAlerts}
+          >
+            ↻ Refresh
+          </button>
+          <div style={{
+            display: "flex", alignItems: "center", gap: "0.5rem",
+            background: "#dcfce7", color: "#166534",
+            padding: "0.4rem 0.875rem", borderRadius: 9999,
+            fontSize: "0.8rem", fontWeight: 600,
+          }}>
+            <span className="live-dot" /> Live
+          </div>
         </div>
       </div>
 

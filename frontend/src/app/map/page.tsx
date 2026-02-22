@@ -1,152 +1,83 @@
 "use client";
 
-import "leaflet/dist/leaflet.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 
-const TYPE_COLORS: Record<string, string> = {
-  Fire: "#dc2626",
-  Flood: "#2563eb",
-  Accident: "#ea580c",
-  Crime: "#7c3aed",
-  "Power Outage": "#d97706",
-  Other: "#64748b",
-};
+const BUCKETS = [
+  { key: "fire",     label: "Fire",         emoji: "🔥", color: "#dc2626", types: ["Fire"] },
+  { key: "flood",    label: "Flood",        emoji: "🌊", color: "#2563eb", types: ["Flood"] },
+  { key: "storm",    label: "Storm",        emoji: "⛈️", color: "#7c3aed", types: ["Power Outage"] },
+  { key: "accident", label: "Accident",     emoji: "🚗", color: "#ea580c", types: ["Accident"] },
+  { key: "crime",    label: "Crime",        emoji: "🚨", color: "#0f172a", types: ["Crime"] },
+  { key: "other",    label: "Other",        emoji: "⚠️", color: "#64748b", types: ["Other"] },
+];
 
-const TYPE_ICONS: Record<string, string> = {
-  Fire: "🔥", Flood: "🌊", Accident: "🚗",
-  Crime: "🚨", "Power Outage": "⚡", Other: "⚠️",
-};
+function getBucket(type: string) {
+  return BUCKETS.find((b) => b.types.includes(type)) ?? BUCKETS[5];
+}
 
-export default function MapPage() {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+function timeAgo(ts: string) {
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+export default function IncidentsPage() {
   const [reports, setReports] = useState<any[]>([]);
-  const [mapReady, setMapReady] = useState(false);
+  const [voting, setVoting] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("all");
 
-  // Load reports once
-  useEffect(() => {
+  function fetchReports() {
     api.getReports().then(setReports).catch(console.error);
+  }
+
+  useEffect(() => {
+    fetchReports();
+    const interval = setInterval(fetchReports, 30_000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Init map — with proper cleanup so React Strict Mode double-invoke works
   useEffect(() => {
-    if (!mapRef.current) return;
-
-    let map: any = null;
-
-    import("leaflet").then((mod) => {
-      const L = mod.default;
-      if (!mapRef.current || mapInstanceRef.current) return;
-
-      map = L.map(mapRef.current, { zoomControl: true }).setView([35.91, -79.05], 13);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
-        maxZoom: 19,
-      }).addTo(map);
-
-      mapInstanceRef.current = map;
-      setMapReady(true);
-    });
-
-    // Cleanup — removes map on unmount (handles React Strict Mode double-fire)
-    return () => {
-      if (map) {
-        map.remove();
-        mapInstanceRef.current = null;
-        markersRef.current = [];
-        setMapReady(false);
-      }
-    };
+    const channel = supabase
+      .channel("reports-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reports" }, fetchReports)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Re-render markers whenever map becomes ready or reports change
-  useEffect(() => {
-    if (!mapReady || !mapInstanceRef.current) return;
-
-    import("leaflet").then((mod) => {
-      const L = mod.default;
-      const map = mapInstanceRef.current;
-      if (!map) return;
-
-      // Clear old markers
-      markersRef.current.forEach((m) => m.remove());
-      markersRef.current = [];
-
-      reports.forEach((r) => {
-        const color = TYPE_COLORS[r.type] ?? "#64748b";
-        const emoji = TYPE_ICONS[r.type] ?? "⚠️";
-        const votes = r.vote_count ?? 0;
-
-        const icon = L.divIcon({
-          className: "",
-          html: `<div style="
-            width:36px;height:36px;
-            background:${color};
-            border:2.5px solid white;
-            border-radius:50% 50% 50% 0;
-            transform:rotate(-45deg);
-            box-shadow:0 3px 10px rgba(0,0,0,0.25);
-            display:flex;align-items:center;justify-content:center;
-          "><span style="transform:rotate(45deg);font-size:14px;line-height:1">${emoji}</span></div>`,
-          iconSize: [36, 36],
-          iconAnchor: [18, 36],
-          popupAnchor: [0, -40],
-        });
-
-        const marker = L.marker([r.lat, r.lng], { icon }).addTo(map);
-        marker.bindPopup(`
-          <div style="font-family:-apple-system,system-ui,sans-serif;min-width:200px;padding:2px">
-            <span style="
-              background:${color};color:white;
-              padding:3px 10px;border-radius:9999px;
-              font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
-              display:inline-block;margin-bottom:8px
-            ">${emoji} ${r.type}</span>
-            <strong style="font-size:14px;color:#0f172a;display:block;margin-bottom:4px;line-height:1.3">${r.title}</strong>
-            ${r.description ? `<p style="font-size:12px;color:#64748b;margin:0 0 6px;line-height:1.4">${r.description}</p>` : ""}
-            <div style="font-size:12px;color:#64748b;margin-bottom:10px">
-              🗳️ <strong style="color:#0f172a">${votes}</strong> vote${votes !== 1 ? "s" : ""}
-            </div>
-            <button
-              onclick="window.__upvote('${r.id}',this)"
-              style="width:100%;padding:8px 12px;background:#dc2626;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px"
-            >👍 Upvote</button>
-          </div>
-        `, { maxWidth: 260 });
-
-        markersRef.current.push(marker);
-      });
-    });
-  }, [reports, mapReady]);
-
-  // Global upvote handler for popup buttons
-  useEffect(() => {
-    (window as any).__upvote = async (id: string, btn: HTMLButtonElement) => {
-      btn.disabled = true;
-      btn.textContent = "Voting…";
-      try {
-        const res = await api.upvoteReport(id);
-        const fresh = await api.getReports();
-        setReports(fresh);
-        showToast(`Voted! ${res.vote_count} vote${res.vote_count !== 1 ? "s" : ""} total`);
-      } catch (e: any) {
-        const msg = e.message ?? "";
-        showToast(msg.includes("409") || msg.includes("Already") ? "You already voted on this" : "Failed to vote");
-        btn.disabled = false;
-        btn.textContent = "👍 Upvote";
-      }
-    };
-    return () => { delete (window as any).__upvote; };
-  }, []);
+  async function handleUpvote(id: string) {
+    setVoting((v) => ({ ...v, [id]: true }));
+    try {
+      const res = await api.upvoteReport(id);
+      setReports((prev) => prev.map((r) => r.id === id ? { ...r, vote_count: res.vote_count } : r));
+      showToast(`Voted! ${res.vote_count} vote${res.vote_count !== 1 ? "s" : ""} total`);
+    } catch (e: any) {
+      showToast(e.message?.includes("409") || e.message?.includes("Already") ? "Already voted on this" : "Failed to vote");
+    } finally {
+      setVoting((v) => ({ ...v, [id]: false }));
+    }
+  }
 
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3500);
   }
+
+  const tabs = [
+    { key: "all", label: "All", emoji: "📋" },
+    ...BUCKETS.map((b) => ({ key: b.key, label: b.label, emoji: b.emoji })),
+  ];
+
+  const filtered = activeTab === "all"
+    ? reports
+    : reports.filter((r) => getBucket(r.type).key === activeTab);
 
   return (
     <AuthGate>
@@ -158,47 +89,117 @@ export default function MapPage() {
           boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
           fontSize: "0.875rem", fontWeight: 500,
           borderLeft: "4px solid #dc2626",
-          animation: "slideIn 0.3s ease",
         }}>
           ✅ {toast}
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
         <div>
-          <h1 style={{ fontSize: "1.625rem", fontWeight: 800, letterSpacing: "-0.03em" }}>Incident Map</h1>
+          <h1 style={{ fontSize: "1.625rem", fontWeight: 800, letterSpacing: "-0.03em" }}>Incident Reports</h1>
           <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginTop: "0.2rem" }}>
             {reports.length > 0 ? `${reports.length} incident${reports.length !== 1 ? "s" : ""} reported` : "Loading…"}
           </p>
         </div>
-        <button
-          className="btn btn-secondary"
-          style={{ fontSize: "0.8rem" }}
-          onClick={() => api.getReports().then(setReports).catch(console.error)}
-        >
+        <button className="btn btn-secondary" style={{ fontSize: "0.8rem" }} onClick={fetchReports}>
           ↻ Refresh
         </button>
       </div>
 
-      {/* Legend */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem" }}>
-        {Object.entries(TYPE_COLORS).map(([type, color]) => (
-          <div key={type} style={{
-            display: "flex", alignItems: "center", gap: "0.375rem",
-            background: "white", padding: "0.3rem 0.75rem",
-            borderRadius: 9999, border: "1px solid var(--border)",
-            fontSize: "0.78rem", fontWeight: 600,
-          }}>
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0 }} />
-            {TYPE_ICONS[type]} {type}
-          </div>
-        ))}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+        {tabs.map((t) => {
+          const count = t.key === "all"
+            ? reports.length
+            : reports.filter((r) => getBucket(r.type).key === t.key).length;
+          const active = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              style={{
+                padding: "0.4rem 1rem", borderRadius: 9999,
+                border: active ? "2px solid #dc2626" : "1.5px solid var(--border)",
+                background: active ? "#fee2e2" : "white",
+                color: active ? "#991b1b" : "var(--text-muted)",
+                fontWeight: 600, fontSize: "0.8rem", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: "0.375rem",
+              }}
+            >
+              {t.emoji} {t.label}
+              <span style={{
+                background: active ? "#dc2626" : "#e2e8f0",
+                color: active ? "white" : "var(--text-muted)",
+                borderRadius: 9999, padding: "0 6px",
+                fontSize: "0.7rem", fontWeight: 700,
+              }}>{count}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Map container */}
-      <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid var(--border)", boxShadow: "var(--shadow)" }}>
-        <div ref={mapRef} style={{ height: 560, width: "100%" }} />
-      </div>
+      {filtered.length === 0 ? (
+        <div className="empty-state">
+          <span className="empty-icon">📭</span>
+          <p style={{ fontWeight: 600, color: "var(--text)", marginBottom: "0.25rem" }}>No incidents here</p>
+          <p style={{ fontSize: "0.875rem" }}>Nothing reported in this category yet.</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+          {filtered.map((r) => {
+            const bucket = getBucket(r.type);
+            const votes = r.vote_count ?? 0;
+            const isVoting = voting[r.id];
+            return (
+              <div key={r.id} className="card" style={{ padding: "1.25rem 1.5rem", borderLeft: `4px solid ${bucket.color}` }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem", flexWrap: "wrap" }}>
+                      <span style={{
+                        background: bucket.color, color: "white",
+                        padding: "2px 10px", borderRadius: 9999,
+                        fontSize: "0.72rem", fontWeight: 700,
+                        letterSpacing: "0.04em", textTransform: "uppercase",
+                      }}>
+                        {bucket.emoji} {r.type}
+                      </span>
+                      <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{timeAgo(r.created_at)}</span>
+                    </div>
+                    <p style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--text)", marginBottom: r.description ? "0.3rem" : 0 }}>
+                      {r.title}
+                    </p>
+                    {r.description && (
+                      <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: 1.5 }}>{r.description}</p>
+                    )}
+                    <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.5rem" }}>
+                      📍 {Number(r.lat).toFixed(4)}, {Number(r.lng).toFixed(4)}
+                    </p>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem", flexShrink: 0 }}>
+                    <button
+                      onClick={() => handleUpvote(r.id)}
+                      disabled={isVoting}
+                      style={{
+                        width: 48, height: 48, borderRadius: 12,
+                        border: `2px solid ${bucket.color}`,
+                        background: isVoting ? "#f1f5f9" : "white",
+                        color: bucket.color,
+                        fontSize: "1.2rem", cursor: isVoting ? "not-allowed" : "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {isVoting ? "…" : "▲"}
+                    </button>
+                    <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--text)" }}>{votes}</span>
+                    <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>vote{votes !== 1 ? "s" : ""}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </AuthGate>
   );
 }
