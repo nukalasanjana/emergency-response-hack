@@ -42,6 +42,9 @@ export const api = {
   }) => apiFetch("/reports", { method: "POST", body: JSON.stringify(data) }),
   upvoteReport: (id: string) =>
     apiFetch(`/reports/${id}/upvote`, { method: "POST" }),
+  removeVote: (id: string) =>
+    apiFetch(`/reports/${id}/upvote`, { method: "DELETE" }),
+  getMyVotes: () => apiFetch("/me/votes") as Promise<string[]>,
   getAlerts: () => apiFetch("/alerts"),
   getAnalytics: () => apiFetch("/admin/analytics"),
 };

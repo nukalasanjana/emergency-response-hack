@@ -142,6 +142,22 @@ export default function AlertsPage() {
           }
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "report_votes" },
+        (payload: any) => {
+          const reportId = payload.old?.report_id as string | undefined;
+          if (!reportId) return;
+
+          setReports((prev) =>
+            prev.map((r) =>
+              r.id === reportId
+                ? { ...r, vote_count: Math.max(0, (r.vote_count ?? 0) - 1) }
+                : r
+            )
+          );
+        }
+      )
       .subscribe();
 
     return () => {

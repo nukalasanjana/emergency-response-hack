@@ -31,6 +31,7 @@ function timeAgo(ts: string) {
 export default function IncidentsPage() {
   const [reports, setReports] = useState<any[]>([]);
   const [voting, setVoting] = useState<Record<string, boolean>>({});
+  const [myVotes, setMyVotes] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("all");
 
@@ -40,6 +41,7 @@ export default function IncidentsPage() {
 
   useEffect(() => {
     fetchReports();
+    api.getMyVotes().then((ids) => setMyVotes(new Set(ids))).catch(console.error);
     const interval = setInterval(fetchReports, 30_000);
     return () => clearInterval(interval);
   }, []);
@@ -57,9 +59,24 @@ export default function IncidentsPage() {
     try {
       const res = await api.upvoteReport(id);
       setReports((prev) => prev.map((r) => r.id === id ? { ...r, vote_count: res.vote_count } : r));
+      setMyVotes((prev) => new Set(prev).add(id));
       showToast(`Voted! ${res.vote_count} vote${res.vote_count !== 1 ? "s" : ""} total`);
     } catch (e: any) {
       showToast(e.message?.includes("409") || e.message?.includes("Already") ? "Already voted on this" : "Failed to vote");
+    } finally {
+      setVoting((v) => ({ ...v, [id]: false }));
+    }
+  }
+
+  async function handleRemoveVote(id: string) {
+    setVoting((v) => ({ ...v, [id]: true }));
+    try {
+      const res = await api.removeVote(id);
+      setReports((prev) => prev.map((r) => r.id === id ? { ...r, vote_count: res.vote_count } : r));
+      setMyVotes((prev) => { const next = new Set(prev); next.delete(id); return next; });
+      showToast(`Vote removed. ${res.vote_count} vote${res.vote_count !== 1 ? "s" : ""} remaining`);
+    } catch (e: any) {
+      showToast("Failed to remove vote");
     } finally {
       setVoting((v) => ({ ...v, [id]: false }));
     }
@@ -149,6 +166,7 @@ export default function IncidentsPage() {
             const bucket = getBucket(r.type);
             const votes = r.vote_count ?? 0;
             const isVoting = voting[r.id];
+            const hasVoted = myVotes.has(r.id);
             return (
               <div key={r.id} className="card" style={{ padding: "1.25rem 1.5rem", borderLeft: `4px solid ${bucket.color}` }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }}>
@@ -177,22 +195,23 @@ export default function IncidentsPage() {
 
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem", flexShrink: 0 }}>
                     <button
-                      onClick={() => handleUpvote(r.id)}
+                      onClick={() => hasVoted ? handleRemoveVote(r.id) : handleUpvote(r.id)}
                       disabled={isVoting}
+                      title={hasVoted ? "Remove your vote" : "Upvote this report"}
                       style={{
                         width: 48, height: 48, borderRadius: 12,
                         border: `2px solid ${bucket.color}`,
-                        background: isVoting ? "#f1f5f9" : "white",
-                        color: bucket.color,
+                        background: isVoting ? "#f1f5f9" : hasVoted ? bucket.color : "white",
+                        color: hasVoted ? "white" : bucket.color,
                         fontSize: "1.2rem", cursor: isVoting ? "not-allowed" : "pointer",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         transition: "all 0.15s",
                       }}
                     >
-                      {isVoting ? "…" : "▲"}
+                      {isVoting ? "…" : hasVoted ? "▼" : "▲"}
                     </button>
                     <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--text)" }}>{votes}</span>
-                    <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>vote{votes !== 1 ? "s" : ""}</span>
+                    <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{hasVoted ? "voted" : `vote${votes !== 1 ? "s" : ""}`}</span>
                   </div>
                 </div>
               </div>

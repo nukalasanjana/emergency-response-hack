@@ -83,9 +83,10 @@ create policy "profiles_update" on profiles for update using (auth.uid() = id);
 create policy "reports_select" on reports for select using (true);
 create policy "reports_insert" on reports for insert with check (auth.uid() = user_id);
 
--- Report votes: anyone authed can read; insert own
+-- Report votes: anyone authed can read; insert own; delete own
 create policy "report_votes_select" on report_votes for select using (true);
 create policy "report_votes_insert" on report_votes for insert with check (auth.uid() = user_id);
+create policy "report_votes_delete" on report_votes for delete using (auth.uid() = user_id);
 
 -- Alerts: anyone can read; insert via service role (backend)
 create policy "alerts_select" on alerts for select using (true);

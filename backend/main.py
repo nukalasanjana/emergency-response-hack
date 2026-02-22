@@ -155,6 +155,28 @@ def upvote_report(report_id: str, authorization: str = Header(None)):
     return {"vote_count": vote_count}
 
 
+@app.delete("/reports/{report_id}/upvote")
+def remove_vote(report_id: str, authorization: str = Header(None)):
+    uid = _get_user_id(authorization)
+
+    # Delete the vote row
+    res = sb.table("report_votes").delete().eq("report_id", report_id).eq("user_id", uid).execute()
+    if not res.data:
+        raise HTTPException(404, "Vote not found")
+
+    # Return updated count
+    count_res = sb.table("report_votes").select("id", count="exact").eq("report_id", report_id).execute()
+    vote_count: int = count_res.count or 0
+    return {"vote_count": vote_count}
+
+
+@app.get("/me/votes")
+def list_my_votes(authorization: str = Header(None)):
+    uid = _get_user_id(authorization)
+    res = sb.table("report_votes").select("report_id").eq("user_id", uid).execute()
+    return [row["report_id"] for row in (res.data or [])]
+
+
 def _estimate_alerted(community_id: str | None) -> int:
     if community_id:
         res = sb.table("community_memberships").select("user_id", count="exact").eq("community_id", community_id).execute()
