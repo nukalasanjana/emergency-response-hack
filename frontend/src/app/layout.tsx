@@ -14,12 +14,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        />
-      </head>
+      <head />
       <body>
         <NavBar />
         <main style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem 1.5rem" }}>

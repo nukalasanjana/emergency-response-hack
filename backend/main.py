@@ -48,8 +48,12 @@ def _get_user_id(authorization: str | None) -> str:
 
 
 def _get_profile(user_id: str) -> dict:
-    res = sb.table("profiles").select("*").eq("id", user_id).single().execute()
-    return res.data
+    res = sb.table("profiles").select("*").eq("id", user_id).execute()
+    if res.data:
+        return res.data[0]
+    # Auto-create profile if the signup trigger didn't fire
+    insert_res = sb.table("profiles").insert({"id": user_id}).execute()
+    return insert_res.data[0]
 
 
 # ── Schemas ──────────────────────────────────────────────────
@@ -99,6 +103,7 @@ def list_reports():
 @app.post("/reports")
 def create_report(body: ReportCreate, authorization: str = Header(None)):
     uid = _get_user_id(authorization)
+    _get_profile(uid)  # ensures profile row exists before foreign-key insert
     data = body.model_dump()
     data["user_id"] = uid
     res = sb.table("reports").insert(data).execute()
@@ -108,6 +113,7 @@ def create_report(body: ReportCreate, authorization: str = Header(None)):
 @app.post("/reports/{report_id}/upvote")
 def upvote_report(report_id: str, authorization: str = Header(None)):
     uid = _get_user_id(authorization)
+    _get_profile(uid)  # ensures profile row exists before foreign-key insert
 
     # Insert vote (unique constraint prevents duplicates)
     try:
