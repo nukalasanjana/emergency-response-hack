@@ -5,6 +5,7 @@ Community Alerts – FastAPI Backend
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -13,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from supabase import create_client, Client
 
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
 
 SUPABASE_URL: str = os.environ["SUPABASE_URL"]
 SUPABASE_SERVICE_KEY: str = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
