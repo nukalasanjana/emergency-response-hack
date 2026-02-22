@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 
 const QUICK_ACTIONS = [
-  { href: "/map",      icon: "🗺️", label: "Incident Map",  desc: "View all reported incidents on a live map" },
+  { href: "/map",      icon: "🗺️", label: "Incidents",     desc: "View all reported incidents on a live map" },
   { href: "/report",   icon: "📝", label: "File a Report", desc: "Submit a new community incident report" },
   { href: "/alerts",   icon: "🔔", label: "Live Alerts",   desc: "Real-time alerts as incidents are confirmed" },
   { href: "/settings", icon: "⚙️", label: "Settings",      desc: "Manage your notification preferences" },
