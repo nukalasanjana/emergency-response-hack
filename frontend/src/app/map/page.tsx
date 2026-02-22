@@ -1,5 +1,6 @@
 "use client";
 
+import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
@@ -40,15 +41,6 @@ export default function MapPage() {
     import("leaflet").then((mod) => {
       const L = mod.default;
       if (!mapRef.current || mapInstanceRef.current) return;
-
-      // Inject Leaflet CSS via JS so it's guaranteed loaded before map renders
-      if (!document.querySelector("link[data-leaflet]")) {
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-        link.setAttribute("data-leaflet", "true");
-        document.head.appendChild(link);
-      }
 
       map = L.map(mapRef.current, { zoomControl: true }).setView([35.91, -79.05], 13);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
