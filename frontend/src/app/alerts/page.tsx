@@ -52,59 +52,23 @@ export default function AlertsPage() {
   const [reports, setReports] = useState<any[]>([]);
   const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
   const nextId = useRef(0);
-  const alertIdsRef = useRef<Set<string>>(new Set());
-
-  function mergeAlerts(fresh: any[]) {
-    setAlerts((prev) => {
-      const newOnes = fresh.filter((a) => !alertIdsRef.current.has(a.id));
-      newOnes.forEach((a) => {
-        alertIdsRef.current.add(a.id);
-        const id = ++nextId.current;
-        setToasts((t) => [...t, { id, message: a.message }]);
-        setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5000);
-      });
-      if (newOnes.length === 0) return prev;
-      return [...newOnes, ...prev];
-    });
-  }
-
-  function fetchAlerts() {
-    api.getAlerts().then((data) => {
-      alertIdsRef.current = new Set(data.map((a: any) => a.id));
-      setAlerts(data);
-    }).catch(console.error);
-  }
-
   const [myThreshold, setMyThreshold] = useState<number>(5);
   const notifiedIncidents = useRef<Set<string>>(new Set());
 
   // Load reports + threshold
   useEffect(() => {
-    api.getAlerts().then(setAlerts).catch(console.error);
+    api.getReports().then(setReports).catch(console.error);
+
+    api
+      .getMe()
+      .then((me) => setMyThreshold(me.default_threshold ?? 5))
+      .catch(() => setMyThreshold(5));
   }, []);
 
   // Reset notification memory when threshold changes
   useEffect(() => {
     notifiedIncidents.current = new Set();
   }, [myThreshold]);
-
-  // Realtime: new reports
-  useEffect(() => {
-    const channel = supabase
-      .channel("alerts-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "alerts" }, (payload: any) => {
-        const newAlert = payload.new;
-        setAlerts((prev) => [newAlert, ...prev]);
-        const id = ++nextId.current;
-        setToasts((prev) => [...prev, { id, message: newAlert.message }]);
-        setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   // Realtime: per-user threshold (report_votes insert crosses myThreshold)
   useEffect(() => {
