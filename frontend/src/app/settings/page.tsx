@@ -110,7 +110,7 @@ export default function SettingsPage() {
             }}>👤</div>
             <div>
               <p style={{ fontWeight: 700, fontSize: "0.9375rem" }}>Account</p>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Sign out of Community Alerts</p>
+              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Sign out of Flare</p>
             </div>
           </div>
           <button className="btn btn-danger" onClick={handleLogout}>
