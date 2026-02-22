@@ -101,11 +101,9 @@ create policy "memberships_insert" on community_memberships for insert with chec
 -- ============================================================
 -- Realtime: enable realtime on alerts table
 -- ============================================================
-begin;
-  alter publication supabase_realtime add table alerts;
-exception when others then
-  null;  -- Table already in publication, ignore error
-end;
+alter publication supabase_realtime add table alerts;
+alter publication supabase_realtime add table reports;
+alter publication supabase_realtime add table report_votes;
 
 -- ============================================================
 -- Helper: auto-create profile on signup (trigger)

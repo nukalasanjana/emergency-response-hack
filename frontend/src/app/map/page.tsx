@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import AuthGate from "@/components/AuthGate";
 
 const TYPE_COLORS: Record<string, string> = {
