@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { href: "/report",   label: "Report",   icon: "📝" },
   { href: "/alerts",   label: "Alerts",   icon: "🔔" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
+  { href: "/about",    label: "About",    icon: "ℹ️" },
 ];
 
 export default function NavBar() {
@@ -58,7 +59,7 @@ export default function NavBar() {
             fontWeight: 700,
             fontSize: "0.9375rem",
             letterSpacing: "-0.01em",
-          }}>Community Alerts</span>
+          }}>Flare</span>
         </Link>
 
         {/* Nav links */}

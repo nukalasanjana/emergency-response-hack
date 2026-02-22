@@ -84,7 +84,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
             {isSignUp ? "Create your account" : "Welcome back"}
           </h1>
           <p style={{ color: "var(--text-muted)", marginTop: "0.375rem", fontSize: "0.9rem" }}>
-            {isSignUp ? "Join Community Alerts today" : "Sign in to continue"}
+            {isSignUp ? "Join Flare today" : "Sign in to continue"}
           </p>
         </div>
 

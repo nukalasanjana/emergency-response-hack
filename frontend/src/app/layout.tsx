@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import NavBar from "@/components/NavBar";
 
 export const metadata: Metadata = {
-  title: "Community Alerts",
+  title: "Flare",
   description: "Crowdsourced incident reporting and real-time alerts",
 };
 
