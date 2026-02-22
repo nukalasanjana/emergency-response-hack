@@ -1,12 +1,4 @@
-<<<<<<< HEAD
-=======
-[00:00:01.556] Server  LOG     ✓ Ready in 1341ms
-[00:00:39.840] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[00:01:07.755] Browser ERROR   {}
-[00:01:12.953] Browser ERROR   {}
-[00:02:26.729] Server  LOG       Reload env: .env.local
-[00:02:26.817] Server  LOG     ✓ Compiled in 49ms
-[00:02:48.418] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[00:03:13.791] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[00:03:14.674] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
->>>>>>> a68a2365b75e97c2d7e56b767346082afc0e9b65
+[00:00:00.504] Server  LOG     ✓ Ready in 326ms
+[00:00:28.642] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:53.195] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:01:11.010] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
